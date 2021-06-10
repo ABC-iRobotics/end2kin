@@ -219,24 +219,33 @@ def get_color_goodfeatures(goodfeatures,img):
     return color_goodfeatures
 
 
-def get_sift(img):
+def get_sift(img, mask):
+    mask = mask*255
+    mask = np.uint8(mask)
+    
+    #img = np.asarray(img, np.float64)
+    print(mask.shape)
+    print(img.shape)
+
     gray= cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+    gray = cv2.bitwise_and(np.uint8(gray), np.uint8(gray), mask=mask)
+    #cv2.imshow('sift', gray)
     sift = cv2.SIFT_create()
     keypoints, descriptors = sift.detectAndCompute(gray,None)
-    for keyPoint in keypoints:
-        x = keyPoint.pt[0]
-        y = keyPoint.pt[1]
+
     pts = cv2.KeyPoint_convert(keypoints)
-    #print(pts.shape)
-    #print(descriptors.shape)
+
     img=cv2.drawKeypoints(gray,keypoints,img)
-    #cv2.imshow('sift', img)
+    
+    cv2.imshow('sift', img)
+
     return pts, descriptors
     
 
     
-def left_parts_sift(pts, descriptors, img):
+def left_parts_sift(pts, descriptors, img, connected_l):
     h, w = img.shape[:2]
+    
     #print(pts)
     position = pts
     features = descriptors
