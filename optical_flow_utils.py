@@ -201,17 +201,16 @@ def optflow_main(video_filename, frame_num, width, height, pyr_scale = None, lev
         #print(lab_mask_binary_int.dtype)
         
         connected_l, connected_r = segm.undesired_objects(lab_mask_binary_int)
-        #edges = edgeFinder.get_tool_edges(connected.astype(np.uint8), connected)
         
         corners_l = edgeFinder.get_corners(connected_l.astype(np.uint8), roi)
 
-        #fitted_lines = edgeFinder.left_upper_lane(corners_l, roi)
-        #visualizeEdges = visualize_lab(fitted_lines)
         roi_hsv = cv.cvtColor(roi, cv.COLOR_BGR2Lab)
         color_goodfeatures = edgeFinder.get_color_goodfeatures(corners_l, roi_hsv)
-        sift = edgeFinder.get_sift(roi)
+        pts, descriptors = edgeFinder.get_sift(roi)
         img_points = edgeFinder.goodFeatures_clustering(corners_l, color_goodfeatures, roi)
-        visualizeClusters = visualize_lab(img_points)
+        
+        img_sift = edgeFinder.left_parts_sift(pts, descriptors, roi)
+        visualizeClusters = visualize_lab(img_sift)
 
         if not optflow_visualized:
             break

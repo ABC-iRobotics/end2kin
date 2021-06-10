@@ -40,7 +40,7 @@ def get_corners(mask, img):
     
     for corner in corners:
         x,y = corner.ravel()
-        cv2.circle(img,(x,y),3,255,-1)
+        #cv2.circle(img,(x,y),3,255,-1)
   
     return corners
     
@@ -152,21 +152,21 @@ def goodFeatures_clustering(goodfeatures, color_goodfeatures, img):
     A = A[:,0:2]
     B = B[:,0:2]
     C = C[:,0:2]
-    print(A)
+    #print(A)
     A = np.int0(A)
     for first_cluster in A:
         x,y = first_cluster.ravel()
-        cv2.circle(img,(x,y),radius = 3,color=(0, 255, 0),thickness=-1)
+        #cv2.circle(img,(x,y),radius = 3,color=(0, 255, 0),thickness=-1)
         
     B = np.int0(B)
     for second_cluster in B:
         x,y = second_cluster.ravel()
-        cv2.circle(img,(x,y),radius = 3,color=(0, 0, 255),thickness=-1)
+        #cv2.circle(img,(x,y),radius = 3,color=(0, 0, 255),thickness=-1)
         
     C = np.int0(C)
     for third_cluster in C:
         x,y = third_cluster.ravel()
-        cv2.circle(img,(x,y),radius = 3,color=(255, 0, 0),thickness=-1)
+        #cv2.circle(img,(x,y),radius = 3,color=(255, 0, 0),thickness=-1)
         
     #D = np.int0(D)
     #for fourth_cluster in D:
@@ -178,21 +178,21 @@ def goodFeatures_clustering(goodfeatures, color_goodfeatures, img):
     line = [float(vx_1),float(vy_1),float(x_1),float(y_1)]
     left_pt_1 = int((-x_1*vy_1/vx_1) + y_1)
     right_pt_1 = int(((img.shape[1]-x_1)*vy_1/vx_1)+y_1)
-    cv2.line(img,(img.shape[1]-1,right_pt_1),(0,left_pt_1),255,2)
+    #cv2.line(img,(img.shape[1]-1,right_pt_1),(0,left_pt_1),255,2)
     
             
     vx_2, vy_2, x_2, y_2  = cv2.fitLine(np.array(B),cv2.DIST_L2,0,0.01,0.01)
     line = [float(vx_2),float(vy_2),float(x_2),float(y_2)]
     left_pt_2 = int((-x_2*vy_2/vx_2) + y_2)
     right_pt_2 = int(((img.shape[1]-x_2)*vy_2/vx_2)+y_2)
-    cv2.line(img,(img.shape[1]-1,right_pt_2),(0,left_pt_2),255,2)
+    #cv2.line(img,(img.shape[1]-1,right_pt_2),(0,left_pt_2),255,2)
     
             
     vx_3, vy_3, x_3, y_3  = cv2.fitLine(np.array(C),cv2.DIST_L2,0,0.01,0.01)
     line = [float(vx_3),float(vy_3),float(x_3),float(y_3)]
     left_pt_3 = int((-x_3*vy_3/vx_3) + y_3)
     right_pt_3 = int(((img.shape[1]-x_3)*vy_3/vx_3)+y_3)
-    cv2.line(img,(img.shape[1]-1,right_pt_3),(0,left_pt_3),255,2)
+    #cv2.line(img,(img.shape[1]-1,right_pt_3),(0,left_pt_3),255,2)
     
             
     #vx_4, vy_4, x_4, y_4  = cv2.fitLine(np.array(D),cv2.DIST_L2,0,0.01,0.01)
@@ -222,6 +222,92 @@ def get_color_goodfeatures(goodfeatures,img):
 def get_sift(img):
     gray= cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
     sift = cv2.SIFT_create()
-    kp = sift.detect(gray,None)
-    img=cv2.drawKeypoints(gray,kp,img)
-    cv2.imshow('sift', img)
+    keypoints, descriptors = sift.detectAndCompute(gray,None)
+    for keyPoint in keypoints:
+        x = keyPoint.pt[0]
+        y = keyPoint.pt[1]
+    pts = cv2.KeyPoint_convert(keypoints)
+    #print(pts.shape)
+    #print(descriptors.shape)
+    img=cv2.drawKeypoints(gray,keypoints,img)
+    #cv2.imshow('sift', img)
+    return pts, descriptors
+    
+
+    
+def left_parts_sift(pts, descriptors, img):
+    h, w = img.shape[:2]
+    #print(pts)
+    position = pts
+    features = descriptors
+
+    #print(features.shape)
+    #print(position.shape)
+    #print(len(features[0]))
+    
+    length_feature_x = len(features)
+    length_feature_y = len(features[0]) + 2
+    
+    #print(length_feature_y)
+    
+    feature_set = np.empty((length_feature_x, length_feature_y))
+    #print(feature_set)
+
+    for i in range(length_feature_x):
+        for j in range(length_feature_y):
+            if(j == 0):
+                feature_set[i,j] = position[i,0]
+            if(j == 1):
+                feature_set[i,j] = position[i,1]
+            if(j > 1):
+                feature_set[i,j] = features[i,j-2]
+
+    #print(feature_set.shape)
+    Z = np.float32(feature_set)
+    #print(Z)
+    # define criteria and apply kmeans()
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    ret,label,center=cv2.kmeans(Z,3,None,criteria,10,cv2.KMEANS_RANDOM_CENTERS)
+    
+    
+    A = Z[label.ravel()==0]
+    B = Z[label.ravel()==1]
+    C = Z[label.ravel()==2]
+    
+    
+
+    print(position[0,1])
+    print(Z[0,1])
+    A = A[:,0:2]
+    B = B[:,0:2]
+    C = C[:,0:2]
+
+    print(A.shape)
+    A = np.uint8(A)
+    for first_cluster in A:
+        x,y = first_cluster.ravel()
+        cv2.circle(img,(x,y),radius = 3,color=(0, 255, 0),thickness=-1)
+        
+    B = np.uint8(B)
+    for second_cluster in B:
+        x,y = second_cluster.ravel()
+        cv2.circle(img,(x,y),radius = 3,color=(0, 0, 255),thickness=-1)
+        
+    C = np.uint8(C)
+    for third_cluster in C:
+        x,y = third_cluster.ravel()
+        cv2.circle(img,(x,y),radius = 3,color=(255, 0, 0),thickness=-1)
+        
+  
+    return img
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
