@@ -206,10 +206,11 @@ def optflow_main(video_filename, frame_num, width, height, pyr_scale = None, lev
 
         roi_hsv = cv.cvtColor(roi, cv.COLOR_BGR2Lab)
         color_goodfeatures = edgeFinder.get_color_goodfeatures(corners_l, roi_hsv)
-        pts, descriptors = edgeFinder.get_sift(roi, connected_l.astype(np.uint8))
+        pts, descriptors, keypoints = edgeFinder.get_sift(roi, connected_l.astype(np.uint8))
+        angle = edgeFinder.sift_data_transform(keypoints)
         img_points = edgeFinder.goodFeatures_clustering(corners_l, color_goodfeatures, roi)
         
-        img_sift = edgeFinder.left_parts_sift(pts, descriptors, roi, connected_l)
+        img_sift = edgeFinder.left_parts_sift(pts, descriptors, roi, connected_l, angle)
         visualizeClusters = visualize_lab(img_sift)
 
         if not optflow_visualized:

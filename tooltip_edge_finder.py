@@ -235,45 +235,56 @@ def get_sift(img, mask):
 
     pts = cv2.KeyPoint_convert(keypoints)
 
-    img=cv2.drawKeypoints(gray,keypoints,img)
+    img=cv2.drawKeypoints(gray,keypoints,img, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     
     cv2.imshow('sift', img)
 
-    return pts, descriptors
+    return pts, descriptors, keypoints
     
 
+
+def sift_data_transform(keypoints):
+    print(keypoints[0].pt[0], keypoints[0].pt[1], keypoints[0].size, keypoints[0].angle, keypoints[0].response, keypoints[0].octave, keypoints[0].class_id)
+    print(len(keypoints))
+
+    angle = []
+    for i in range(len(keypoints)):
+        angle.append(keypoints[i].angle)
+    print(angle)
+    return angle
+
     
-def left_parts_sift(pts, descriptors, img, connected_l):
+def left_parts_sift(pts, descriptors, img, connected_l, angle):
     h, w = img.shape[:2]
     
-    #print(pts)
+
     position = pts
-    features = descriptors
-
-    #print(features.shape)
-    #print(position.shape)
-    #print(len(features[0]))
+    features = angle
     
-    length_feature_x = len(features)
-    length_feature_y = len(features[0]) + 2
+    feature_set = np.empty((len(features), 3))
+    for i in range(len(features)):
+        feature_set[i,0] = position[i,0] 
+        feature_set[i,1] = position[i,1] 
+        feature_set[i,2] = angle[i] 
     
-    #print(length_feature_y)
+    # Descriptor-based kmeans
+    # features = descriptors
+    #length_feature_x = len(features)
+    #length_feature_y = len(features[0]) + 2
     
-    feature_set = np.empty((length_feature_x, length_feature_y))
-    #print(feature_set)
+    #feature_set = np.empty((length_feature_x, length_feature_y))
 
-    for i in range(length_feature_x):
-        for j in range(length_feature_y):
-            if(j == 0):
-                feature_set[i,j] = position[i,0]
-            if(j == 1):
-                feature_set[i,j] = position[i,1]
-            if(j > 1):
-                feature_set[i,j] = features[i,j-2]
+    #for i in range(length_feature_x):
+    #    for j in range(length_feature_y):
+    #        if(j == 0):
+    #            feature_set[i,j] = position[i,0]
+    #        if(j == 1):
+    #            feature_set[i,j] = position[i,1]
+    #        if(j > 1):
+    #            feature_set[i,j] = features[i,j-2]
 
-    #print(feature_set.shape)
     Z = np.float32(feature_set)
-    #print(Z)
+
     # define criteria and apply kmeans()
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
     ret,label,center=cv2.kmeans(Z,3,None,criteria,10,cv2.KMEANS_RANDOM_CENTERS)
