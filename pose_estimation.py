@@ -3,19 +3,21 @@
 import cv2
 import numpy as np
 
-def pose_estimation(im):
+def pose_estimation(im, features):
     # Read Image
     size = im.shape
 
     #2D image points. If you change the image, you need to change vector
     image_points = np.array([
-                            (359, 391),     # Nose tip
-                            (399, 561),     # Chin
-                            (337, 297),     # Left eye left corner
-                            (513, 301),     # Right eye right corne
-                            (345, 465),     # Left Mouth corner
-                            (453, 469)      # Right mouth corner
-                        ], dtype="double")
+                            features[0,:],             # Nose tip
+                            features[1,:],        # Chin
+                            features[2,:],     # Left eye left corner
+                            features[3,:],      # Right eye right corne
+                            features[4,:],    # Left Mouth corner
+                            features[5,:]     # Right mouth corner
+
+                        ])
+
 
     # 3D model points.
     model_points = np.array([

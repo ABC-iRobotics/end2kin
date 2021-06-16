@@ -10,7 +10,7 @@ cap = cv2.VideoCapture('/home/reni/IROB_projects/end2kin/virtualenvironment/JIGS
   
 # params for corner detection
 feature_params = dict( maxCorners = 100,
-                       qualityLevel = 0.3,
+                       qualityLevel = 0.01,
                        minDistance = 7,
                        blockSize = 7 )
   
@@ -36,7 +36,6 @@ mask = np.zeros_like(old_frame)
 while(1):
       
     ret, frame = cap.read()
-    pose_estimation = pose.pose_estimation(frame)
     
     
     
@@ -52,6 +51,9 @@ while(1):
     # Select good points
     good_new = p1[st == 1]
     good_old = p0[st == 1]
+    
+    pose_estimation = pose.pose_estimation(frame, good_new)
+    print(good_new.shape)
   
     # draw the tracks
     for i, (new, old) in enumerate(zip(good_new, 
