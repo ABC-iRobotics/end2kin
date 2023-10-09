@@ -1,17 +1,11 @@
 from __future__ import print_function
-from sklearn import preprocessing
 import numpy as np
 import cv2 as cv
 from math import sqrt
 import sys
-import scipy.io
 from io import StringIO
-import instrument_segmentation as segm
-import tooltip_edge_finder as edgeFinder
-
 
 show_hsv = False # global variable for drawing optical flow
-
 
 # Drawing optical flow
 # The next 3 functions will be used in the visualize_flow function
@@ -90,53 +84,7 @@ def visualize_flow(gray, flow):
         print('HSV flow visualization is', ['off', 'on'][show_hsv])
     return True
     
-    
-def visualize_lab(lab_image):
-    cv.imshow('lab', lab_image)
-    return True
-
-    
-# Optical flow preprocessing for the NN - standardization
-# flow: optical flow matrix
-# returns with an optical flow matrix where the values are standardized
-
-def standardize_flow(flow):
-    flow_x_channel = flow[:,:,0]
-    flow_y_channel = flow[:,:,1]
-
-    flow_scaled_x_channel = preprocessing.scale(flow_x_channel)
-    flow_scaled_y_channel = preprocessing.scale(flow_y_channel)
-
-    flow_scaled_both_channel = np.array([flow_scaled_x_channel, flow_scaled_y_channel])
-    flow_scaled_both_channel_transposed = np.transpose(flow_scaled_both_channel, (1,2,0))
-
-    return flow_scaled_both_channel_transposed
-
-
-
-# Optical flow preprocessing for the NN - normalization
-# flow: optical flow matrix
-# returns with an optical flow matrix where the values are normalized
-
-def normalize_flow(flow):
-    flow_x_channel = flow[:,:,0]
-    flow_y_channel = flow[:,:,1]
-
-    flow_min_x = flow_x_channel.min()
-    flow_max_x = flow_x_channel.max()
-    flow_normalized_x = (flow_x_channel - flow_min_x)/(flow_max_x - flow_min_x) 
-
-    flow_min_y = flow_y_channel.min()
-    flow_max_y = flow_y_channel.max()
-    flow_normalized_y = (flow_y_channel - flow_min_y)/(flow_max_y - flow_min_y) 
-
-    flow_normalized_both_channel = np.array([flow_normalized_x, flow_normalized_y])
-    flow_normalized_both_channel_transposed = np.transpose(flow_normalized_both_channel, (1,2,0))
-
-    return flow_normalized_both_channel_transposed
-
-
-
+   
 # Write the flow matrix to a mat file 
 # matrix_name is the variable name to write
 # out_filename is the name of the .mat file
@@ -146,12 +94,18 @@ def writeToFile_flow(matrix_name, out_filename):
     scipy.io.savemat(matfile, mdict={'out': matrix_name}, oned_as='row')
     matdata = scipy.io.loadmat(matfile)
     assert np.all(matrix_name == matdata['out'])
-
-
-def histEq(img):
-    equ = cv.equalizeHist(img)
-    return equ
     
+    
+def flow_mean(flow):
+    mean_x = np.mean(flow[:,:,0])
+    mean_y = np.mean(flow[:,:,1])
+    mean_x = np.true_divide(flow[:,:,1].sum(1),(flow[:,:,1]!=0).sum(1))
+    mean_x = np.mean(mean_x)
+    mean_y = np.true_divide(flow[:,:,0].sum(1),(flow[:,:,0]!=0).sum(1))
+    mean_y = np.mean(mean_y)
+    print(mean_x)
+    return mean_x, mean_y
+
 
 
 # Farneback optical flow calculation
@@ -167,53 +121,15 @@ def histEq(img):
 
 # Returns with the 3D optical flow matrix (every row is the optical flow of one frame, which contains x and y values)
 
-def optflow_main(video_filename, frame_num, width, height, pyr_scale = None, levels = 0.5, winsize = 3, iterations = 15, poly_n = 3, poly_sigma = 5, flags = 1.2, flow_p = 0):
-    cap = get_cap(video_filename)
-    prevgray = get_grayImage(cap)
-    
-    prevgray = histEq(prevgray)
+def optflow_main(prevgray, gray, pyr_scale = None, levels = 0.5, winsize = 3, iterations = 15, poly_n = 3, poly_sigma = 5, flags = 1.2, flow_p = 0):
 
-    allFlow =  np.ndarray(shape = (frame_num, width*height, 2))
+    flow = cv.calcOpticalFlowFarneback(prevgray, gray, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags, flow_p)
 
+    prevgray = gray
 
-    for x in range(frame_num):
-        rgb_cap = get_RGBImage(cap)
-     
-        gray = get_grayImage(cap)
+    #optflow_visualized = visualize_flow(gray, flow)
 
-        gray = histEq(gray)
+    #print(flow.shape)
+    flowMean_x, flowMean_y = flow_mean(flow)
         
-        flow = cv.calcOpticalFlowFarneback(prevgray, gray, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags, flow_p)
-
-        prevgray = gray
-
-        optflow_visualized = visualize_flow(gray, flow)
-
-        #instrument_segmentation = segm.mask_init(rgb_cap, flow)
-        
-        roi = segm.get_roi(rgb_cap, 100, 500, 100, 550)
-        #print(roi.dtype)
-
-        lab_mask = segm.lab_segmentation(roi)
-        #print(lab_mask.dtype)
-        lab_mask_binary = segm.get_lab_mask(lab_mask)
-        lab_mask_binary_int = lab_mask_binary.astype(np.uint8)
-        #print(lab_mask_binary_int.dtype)
-        
-        connected_l, connected_r = segm.undesired_objects(lab_mask_binary_int)
-        
-        corners_l = edgeFinder.get_corners(connected_l.astype(np.uint8), roi)
-
-        roi_hsv = cv.cvtColor(roi, cv.COLOR_BGR2Lab)
-        color_goodfeatures = edgeFinder.get_color_goodfeatures(corners_l, roi_hsv)
-        pts, descriptors, keypoints = edgeFinder.get_sift(roi, connected_l.astype(np.uint8))
-        angle = edgeFinder.sift_data_transform(keypoints)
-        img_points = edgeFinder.goodFeatures_clustering(corners_l, color_goodfeatures, roi)
-        
-        img_sift = edgeFinder.left_parts_sift(pts, descriptors, roi, connected_l, angle)
-        visualizeClusters = visualize_lab(img_sift)
-
-        if not optflow_visualized:
-            break
-
-    return allFlow # 3D optical flow matrix (every row is the optical flow of one frame, which contains x and y values)
+    return flow
